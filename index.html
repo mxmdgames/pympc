@@ -79,6 +79,76 @@
             margin-bottom: 1rem;
         }
 
+        /* Screenshot Section */
+        .screenshot-section {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            margin: 2rem;
+            border: 2px solid #00ff41;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .screenshot-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 65, 0.05), transparent);
+            animation: screenshotShine 4s ease-in-out infinite;
+        }
+
+        @keyframes screenshotShine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            50% { transform: translateX(0%) translateY(0%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .screenshot-section h2 {
+            color: #00ff41;
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            text-shadow: 0 0 20px #00ff41;
+            z-index: 1;
+            position: relative;
+        }
+
+        .screenshot-container {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 255, 65, 0.4);
+            border: 3px solid #00ff41;
+            background: #1e1e1e;
+        }
+
+        .screenshot {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        .screenshot:hover {
+            transform: scale(1.02);
+            box-shadow: 0 30px 80px rgba(0, 255, 65, 0.6);
+        }
+
+        .screenshot-info {
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            padding: 1.5rem;
+            color: #66ff66;
+            font-size: 1.1rem;
+            border-top: 2px solid #00ff41;
+        }
+
         .code-container {
             position: relative;
             margin: 30px;
@@ -413,6 +483,19 @@
     <div class="music-note">♫</div>
     <div class="music-note">♪</div>
     <div class="music-note">♫</div>
+
+    <!-- Screenshot Section -->
+    <div class="screenshot-section">
+        <h2>🖥️ PyMPC in Action</h2>
+        <div class="screenshot-container">
+            <img src="https://i.postimg.cc/v8JTk9Sv/cmdmp3.jpg" 
+                 alt="PyMPC Music Player Interface Screenshot" 
+                 class="screenshot">
+            <div class="screenshot-info">
+                💻 Terminal-based music player with modern UI • Full playlist management • Real-time progress tracking
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="header">

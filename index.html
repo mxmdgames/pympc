@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PyMPC - Terminal Music Player</title>
+    <title>PyMPC - Music Player Code</title>
     <style>
         * {
             margin: 0;
@@ -17,12 +17,19 @@
             color: #00ff41;
             line-height: 1.6;
             overflow-x: hidden;
+            padding: 20px;
+            min-height: 100vh;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 255, 65, 0.3);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 2px solid #00ff41;
         }
 
         /* Animated background grid */
@@ -45,17 +52,18 @@
             100% { transform: translate(50px, 50px); }
         }
 
-        /* Header */
-        header {
-            padding: 2rem 0;
+        .header {
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            color: #00ff41;
+            padding: 30px;
             text-align: center;
             position: relative;
         }
 
-        .logo {
+        .header h1 {
             font-size: 4rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
+            margin-bottom: 10px;
+            font-weight: 700;
             text-shadow: 0 0 20px #00ff41;
             animation: glow 2s ease-in-out infinite alternate;
         }
@@ -65,85 +73,253 @@
             to { text-shadow: 0 0 30px #00ff41, 0 0 40px #00ff41; }
         }
 
-        .tagline {
+        .header p {
             font-size: 1.5rem;
             color: #66ff66;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
         }
 
-        /* Terminal window */
-        .terminal {
-            background: #000;
-            border: 2px solid #00ff41;
-            border-radius: 10px;
+        .code-container {
+            position: relative;
+            margin: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .code-header {
+            background: linear-gradient(90deg, #00ff41, #66ff66);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .control.close { background: #ff4444; }
+        .control.minimize { background: #ffaa00; }
+        .control.maximize { background: #00ff41; }
+
+        .filename {
+            color: #000;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .copy-btn {
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .copy-btn:hover {
+            background: rgba(0, 0, 0, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
             padding: 20px;
-            margin: 2rem 0;
-            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+            overflow: auto;
+            max-height: 70vh;
+            white-space: pre;
+            scrollbar-width: thin;
+            scrollbar-color: #555 #2d2d2d;
+        }
+
+        .code-block::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .code-block::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+
+        .code-block::-webkit-scrollbar-thumb {
+            background: #00ff41;
+            border-radius: 6px;
+        }
+
+        .code-block::-webkit-scrollbar-thumb:hover {
+            background: #66ff66;
+        }
+
+        .code-block::-webkit-scrollbar-corner {
+            background: #2d2d2d;
+        }
+
+        /* Syntax highlighting */
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; font-style: italic; }
+        .function { color: #dcdcaa; }
+        .class { color: #4ec9b0; }
+        .number { color: #b5cea8; }
+        .operator { color: #d4d4d4; }
+
+        .line-numbers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            padding: 20px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #858585;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            user-select: none;
+            border-right: 1px solid #3e3e3e;
+        }
+
+        .code-content {
+            margin-left: 60px;
+        }
+
+        /* Download section */
+        .download-section {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            margin: 3rem 2rem;
+            border: 2px solid #00ff41;
             position: relative;
             overflow: hidden;
         }
 
-        .terminal::before {
-            content: "● ● ●";
+        .download-section::before {
+            content: '';
             position: absolute;
-            top: 10px;
-            left: 15px;
-            color: #ff4444;
-            font-size: 1.2rem;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 65, 0.05), transparent);
+            animation: downloadShine 3s ease-in-out infinite;
         }
 
-        .terminal-header {
-            color: #888;
-            margin-bottom: 15px;
-            padding-top: 20px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 10px;
+        @keyframes downloadShine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            50% { transform: translateX(0%) translateY(0%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
         }
 
-        .command-line {
-            color: #00ff41;
-            margin: 10px 0;
-            opacity: 0;
-            animation: typewriter 0.5s forwards;
-        }
-
-        .command-line:nth-child(2) { animation-delay: 0.5s; }
-        .command-line:nth-child(3) { animation-delay: 1s; }
-        .command-line:nth-child(4) { animation-delay: 1.5s; }
-        .command-line:nth-child(5) { animation-delay: 2s; }
-
-        @keyframes typewriter {
-            to { opacity: 1; }
-        }
-
-        .cursor {
+        .download-btn {
             display: inline-block;
-            background: #00ff41;
-            width: 10px;
-            height: 20px;
-            animation: blink 1s infinite;
+            background: linear-gradient(45deg, #00ff41, #66ff66);
+            color: #000;
+            padding: 1.5rem 3rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 1rem;
+            z-index: 1;
+            font-family: 'Courier New', monospace;
         }
 
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
+        .download-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
         }
 
-        /* Features grid */
+        .download-btn:hover::before {
+            left: 100%;
+        }
+
+        .download-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 255, 65, 0.5);
+            background: linear-gradient(45deg, #66ff66, #00ff41);
+        }
+
+        /* Specs */
+        .specs {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2rem;
+            border-radius: 10px;
+            border: 1px solid #00ff41;
+            margin: 2rem;
+        }
+
+        .specs h3 {
+            color: #00ff41;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .specs ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .specs li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #333;
+            color: #ccc;
+        }
+
+        .specs li:before {
+            content: "▶ ";
+            color: #00ff41;
+        }
+
         .features {
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .features h2 {
+            color: #00ff41;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin: 3rem 0;
+            gap: 20px;
         }
 
         .feature-card {
             background: rgba(0, 0, 0, 0.8);
-            border: 1px solid #00ff41;
-            border-radius: 10px;
-            padding: 2rem;
-            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 255, 65, 0.2);
             transition: all 0.3s ease;
+            border: 1px solid #00ff41;
             position: relative;
             overflow: hidden;
         }
@@ -172,117 +348,19 @@
         }
 
         .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0, 255, 65, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 255, 65, 0.4);
             border-color: #66ff66;
         }
 
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #00ff41;
-        }
-
-        .feature-title {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
+        .feature-card h3 {
             color: #66ff66;
+            margin-bottom: 10px;
         }
 
-        /* Download section */
-        .download-section {
-            text-align: center;
-            padding: 4rem 0;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 20px;
-            margin: 3rem 0;
-            border: 2px solid #00ff41;
-        }
-
-        .download-btn {
-            display: inline-block;
-            background: linear-gradient(45deg, #00ff41, #66ff66);
-            color: #000;
-            padding: 1.5rem 3rem;
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-decoration: none;
-            border-radius: 50px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-            margin: 1rem;
-        }
-
-        .download-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s;
-        }
-
-        .download-btn:hover::before {
-            left: 100%;
-        }
-
-        .download-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 30px rgba(0, 255, 65, 0.5);
-        }
-
-        /* Specs */
-        .specs {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 2rem;
-            border-radius: 10px;
-            border: 1px solid #333;
-            margin: 2rem 0;
-        }
-
-        .specs h3 {
-            color: #00ff41;
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-
-        .specs ul {
-            list-style: none;
-            padding-left: 0;
-        }
-
-        .specs li {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #333;
+        .feature-card p {
             color: #ccc;
-        }
-
-        .specs li:before {
-            content: "▶ ";
-            color: #00ff41;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .logo {
-                font-size: 2.5rem;
-            }
-
-            .tagline {
-                font-size: 1.2rem;
-            }
-
-            .features {
-                grid-template-columns: 1fr;
-            }
-
-            .download-btn {
-                padding: 1rem 2rem;
-                font-size: 1.2rem;
-            }
+            line-height: 1.6;
         }
 
         /* Floating music notes */
@@ -306,6 +384,25 @@
         .music-note:nth-child(2) { top: 20%; right: 10%; animation-delay: 1s; }
         .music-note:nth-child(3) { top: 60%; left: 8%; animation-delay: 2s; }
         .music-note:nth-child(4) { top: 80%; right: 5%; animation-delay: 3s; }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .code-container {
+                margin: 15px;
+            }
+            
+            .code-block {
+                font-size: 12px;
+                max-height: 50vh;
+            }
+        }
     </style>
 </head>
 <body>
@@ -318,64 +415,592 @@
     <div class="music-note">♫</div>
 
     <div class="container">
-        <header>
-            <h1 class="logo">PyMPC</h1>
-            <p class="tagline">Terminal-Based Music Player with Playlist Support</p>
-        </header>
+        <div class="header">
+            <h1>🎵 PyMPC - Music Player</h1>
+            <p>Terminal-based music player with playlist support built with Python, Pygame & Textual</p>
+        </div>
 
-        <div class="terminal">
-            <div class="terminal-header">user@terminal:~/music$ pympc</div>
-            <div class="command-line">🎵 Starting PyMPC...</div>
-            <div class="command-line">🔍 Scanning music directories...</div>
-            <div class="command-line">📚 Found 1,247 tracks in library</div>
-            <div class="command-line">🎮 Controls: [SPACE] Play/Pause [N] Next [P] Previous</div>
-            <div class="command-line">▶️  Ready! Select a track to begin <span class="cursor"></span></div>
+        <div class="code-container">
+            <div class="code-header">
+                <div class="window-controls">
+                    <div class="control close"></div>
+                    <div class="control minimize"></div>
+                    <div class="control maximize"></div>
+                </div>
+                <span class="filename">pympc.py</span>
+                <button class="copy-btn" onclick="copyCode()">📋 Copy Code</button>
+            </div>
+            
+            <div class="code-block" id="codeBlock">#!/usr/bin/env python3
+"""
+PyMPC - Pygame Music Player with Playlist Support
+Robust terminal-based player with full audio and playlist support
+"""
+
+import os
+import sys
+import time
+import platform
+from pathlib import Path
+from typing import List, Dict, Optional, Set, Tuple
+import argparse
+import threading
+from enum import Enum
+import json
+import random
+
+# Platform-specific audio configuration
+if platform.system() == "Windows":
+    os.environ["SDL_AUDIODRIVER"] = "directsound"
+elif platform.system() == "Darwin":
+    os.environ["SDL_AUDIODRIVER"] = "coreaudio"
+else:
+    os.environ["SDL_AUDIODRIVER"] = "alsa"
+
+try:
+    import pygame
+    from pygame import mixer
+    from textual import on, work
+    from textual.app import App, ComposeResult
+    from textual.widgets import (
+        Header, Footer, DataTable, Static, Button,
+        ProgressBar, Input, Select
+    )
+    from textual.containers import Horizontal, Vertical
+    from textual.screen import ModalScreen
+    from textual.message import Message
+    from textual.reactive import reactive
+    from mutagen import File as MutagenFile
+    from mutagen.easyid3 import EasyID3
+    from mutagen.id3 import ID3NoHeaderError
+    from mutagen.flac import FLAC
+    from mutagen.oggopus import OggOpus
+    from mutagen.oggvorbis import OggVorbis
+except ImportError as e:
+    print(f"Missing dependency: {e}")
+    print("Install with: pip install pygame textual mutagen")
+    sys.exit(1)
+
+
+# Configuration Manager
+class MusicConfig:
+    def __init__(self):
+        self.config_path = self.get_config_path()
+        self.data = self.load_config()
+
+    def get_config_path(self) -> Path:
+        """Get OS-appropriate config path"""
+        if platform.system() == "Windows":
+            base = Path(os.environ.get('APPDATA', Path.home()))
+        else:
+            base = Path.home() / ".config"
+        return base / "pympc" / "config.json"
+
+    def load_config(self) -> Dict:
+        """Load or create configuration"""
+        defaults = {
+            'volume': 75,
+            'music_dirs': [
+                str(Path.home() / "Music"),
+                str(Path.home() / "Downloads")
+            ],
+            'supported_formats': ['.mp3', '.wav', '.ogg', '.flac', '.m4a'],
+            'buffer_size': 4096,
+            'audio_channels': 2,
+            'playlists': {},
+            'current_playlist': None,
+            'shuffle_mode': False,
+            'repeat_mode': 0
+        }
+
+        try:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            if self.config_path.exists():
+                with open(self.config_path, 'r') as f:
+                    loaded = json.load(f)
+                    # Merge with defaults to handle new config options
+                    defaults.update(loaded)
+                    return defaults
+            self.save_config(defaults)
+            return defaults
+        except Exception as e:
+            print(f"Config error: {e}, using defaults")
+            return defaults
+
+    def save_config(self, data=None):
+        """Save current configuration to file"""
+        try:
+            with open(self.config_path, 'w') as f:
+                json.dump(data or self.data, f, indent=2)
+        except Exception as e:
+            print(f"Error saving config: {e}")
+
+    @property
+    def volume(self) -> float:
+        return self.data['volume'] / 100.0
+
+    @property
+    def music_dirs(self) -> List[Path]:
+        return [Path(p) for p in self.data['music_dirs']]
+
+    @property
+    def supported_suffixes(self) -> Set[str]:
+        return set(self.data['supported_formats'])
+
+    @property
+    def playlists(self) -> Dict[str, List[str]]:
+        return self.data.get('playlists', {})
+
+    def save_playlist(self, name: str, tracks: List['MusicTrack']):
+        self.data['playlists'][name] = [str(t.path) for t in tracks]
+        self.save_config()
+
+
+# Audio Track Handling
+class MusicTrack:
+    def __init__(self, path: Path):
+        self.path = path
+        self.title = path.stem
+        self.artist = "Unknown Artist"
+        self.duration = 0
+        self._load_metadata()
+
+    def _load_metadata(self):
+        """Load audio metadata with format-specific handling"""
+        try:
+            if self.path.suffix.lower() == '.mp3':
+                try:
+                    audio = EasyID3(self.path)
+                except ID3NoHeaderError:
+                    audio = None
+            else:
+                audio = MutagenFile(self.path)
+
+            if audio:
+                self.title = self._get_tag(audio, 'title', self.path.stem)
+                self.artist = self._get_tag(audio, 'artist', "Unknown Artist")
+                self.duration = audio.info.length if hasattr(audio, 'info') else 0
+        except Exception as e:
+            print(f"Metadata error for {self.path}: {e}")
+
+    def _get_tag(self, audio, tag: str, default: str) -> str:
+        """Safe tag extraction with fallback"""
+        try:
+            value = audio.get(tag, [default])
+            return value[0] if isinstance(value, list) and value else default
+        except (KeyError, TypeError, IndexError):
+            return default
+
+    @property
+    def duration_str(self) -> str:
+        mins, secs = divmod(int(self.duration), 60)
+        return f"{mins}:{secs:02d}"
+
+
+# Playlist Manager
+class PlaylistManager:
+    def __init__(self, config: MusicConfig):
+        self.config = config
+        self.playlists = config.playlists
+        self.current_playlist = config.data.get('current_playlist')
+
+    def create_playlist(self, name: str):
+        """Create a new empty playlist"""
+        if name and name not in self.playlists:
+            self.playlists[name] = []
+            self.config.data['playlists'] = self.playlists
+            self.config.save_config()
+            return True
+        return False
+
+    def get_playlist_tracks(self, playlist_name: str) -> List[MusicTrack]:
+        """Get all tracks in a playlist with path validation"""
+        if playlist_name in self.playlists:
+            tracks = []
+            for path_str in self.playlists[playlist_name]:
+                path = Path(path_str)
+                if path.exists():
+                    tracks.append(MusicTrack(path))
+                else:
+                    print(f"Missing file: {path_str}")
+            return tracks
+        return []
+
+    def delete_playlist(self, name: str):
+        """Delete an existing playlist"""
+        if name in self.playlists:
+            del self.playlists[name]
+            self.config.data['playlists'] = self.playlists
+            self.config.save_config()
+            return True
+        return False
+
+    def add_to_playlist(self, playlist_name: str, track: MusicTrack):
+        """Add a track to an existing playlist"""
+        if playlist_name in self.playlists:
+            track_path = str(track.path)
+            if track_path not in self.playlists[playlist_name]:
+                self.playlists[playlist_name].append(track_path)
+                self.config.save_config()
+                return True
+        return False
+
+    def remove_from_playlist(self, playlist_name: str, track_path: str):
+        """Remove a track from playlist"""
+        if playlist_name in self.playlists:
+            try:
+                self.playlists[playlist_name].remove(track_path)
+                self.config.save_config()
+                return True
+            except ValueError:
+                pass
+        return False
+
+    def get_playlist_names(self) -> List[str]:
+        """Get sorted list of playlist names"""
+        return sorted(self.playlists.keys())
+
+    def clear_playlist(self, name: str):
+        """Remove all tracks from a playlist"""
+        if name in self.playlists:
+            self.playlists[name] = []
+            self.config.save_config()
+            return True
+        return False
+
+
+# Audio Engine
+class AudioBackend:
+    def __init__(self, config: MusicConfig):
+        self.config = config
+        self.current_track: Optional[MusicTrack] = None
+        self.paused = False
+        self.stopped = True  # Add explicit stopped state
+        self._init_pygame()
+        self._setup_end_event()
+
+    def _init_pygame(self):
+        """Initialize audio system with retry logic"""
+        print("Initializing audio subsystem...")
+        try:
+            mixer.pre_init(
+                frequency=44100,
+                size=-16,
+                channels=self.config.data['audio_channels'],
+                buffer=self.config.data['buffer_size']
+            )
+            mixer.init()
+            pygame.init()  # Initialize pygame for event handling
+            print(f"Audio initialized: {mixer.get_init()}")
+            mixer.music.set_volume(self.config.volume)
+        except pygame.error as e:
+            print(f"Audio initialization failed: {e}")
+            sys.exit(1)
+
+    def _setup_end_event(self):
+        """Set up pygame end event tracking"""
+        self.END_EVENT = pygame.USEREVENT + 1
+        mixer.music.set_endevent(self.END_EVENT)
+
+    def check_events(self):
+        """Check for music end events"""
+        for event in pygame.event.get():
+            if event.type == self.END_EVENT:
+                return True
+        return False
+
+    def play(self, track: MusicTrack) -> bool:
+        """Play a music file with error handling"""
+        try:
+            mixer.music.load(str(track.path))
+            mixer.music.play()
+            self.current_track = track
+            self.paused = False
+            self.stopped = False  # Clear stopped state
+            return True
+        except pygame.error as e:
+            print(f"Playback error: {e}")
+            return False
+
+    def pause(self):
+        """Pause playback"""
+        if not self.stopped and mixer.music.get_busy():
+            mixer.music.pause()
+            self.paused = True
+
+    def unpause(self):
+        """Unpause playback"""
+        if self.paused and not self.stopped:
+            mixer.music.unpause()
+            self.paused = False
+
+    def toggle_pause(self):
+        """Toggle pause state"""
+        if self.stopped or not self.current_track:
+            return False  # Can't pause if stopped or no track
+
+        if self.paused:
+            self.unpause()
+        else:
+            self.pause()
+        return True
+
+    def stop(self):
+        """Stop playback completely"""
+        mixer.music.stop()
+        self.paused = False
+        self.stopped = True
+        # Don't clear current_track so we can resume from the same track
+
+    @property
+    def position(self) -> float:
+        """Get current playback position"""
+        if self.stopped:
+            return 0
+        pos = mixer.music.get_pos()
+        return pos / 1000 if pos != -1 else 0
+
+    @property
+    def is_playing(self) -> bool:
+        """Check if currently playing (not paused or stopped)"""
+        return not self.stopped and not self.paused and mixer.music.get_busy()
+
+    @property
+    def is_paused(self) -> bool:
+        """Check if currently paused"""
+        return self.paused and not self.stopped
+
+    @property
+    def is_stopped(self) -> bool:
+        """Check if currently stopped"""
+        return self.stopped
+
+
+# Modal Screens for Playlist Management
+class InputScreen(ModalScreen):
+    """Screen for text input"""
+
+    def __init__(self, prompt: str):
+        super().__init__()
+        self.prompt = prompt
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static(self.prompt, classes="prompt"),
+            Input(id="input", placeholder="Enter name..."),
+            Horizontal(
+                Button("Submit", id="submit", variant="primary"),
+                Button("Cancel", id="cancel"),
+                classes="buttons"
+            ),
+            classes="dialog"
+        )
+
+    @on(Button.Pressed, "#submit")
+    def submit(self):
+        value = self.query_one("#input", Input).value.strip()
+        self.dismiss(value)
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self):
+        self.dismiss(None)
+
+    @on(Input.Submitted)
+    def input_submitted(self):
+        self.submit()
+
+
+class SelectionScreen(ModalScreen):
+    """Screen for selecting from a list"""
+
+    def __init__(self, prompt: str, options: List[str]):
+        super().__init__()
+        self.prompt = prompt
+        self.options = options
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static(self.prompt, classes="prompt"),
+            Select([(opt, opt) for opt in self.options], id="select"),
+            Horizontal(
+                Button("Select", id="select_btn", variant="primary"),
+                Button("Cancel", id="cancel"),
+                classes="buttons"
+            ),
+            classes="dialog"
+        )
+
+    @on(Button.Pressed, "#select_btn")
+    def select_option(self):
+        select_widget = self.query_one("#select", Select)
+        self.dismiss(select_widget.value)
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self):
+        self.dismiss(None)
+
+
+# Main Textual UI Application
+class MusicPlayer(App):
+    CSS = """
+    Screen {
+        layout: horizontal;
+    }
+
+    #sidebar {
+        width: 25%;
+        height: 100%;
+        border-right: solid $primary;
+    }
+
+    #main-content {
+        width: 75%;
+        height: 100%;
+        layout: vertical;
+    }
+
+    #playlists {
+        height: 50%;
+        border-bottom: solid $primary;
+    }
+
+    #library-selector {
+        height: 50%;
+    }
+
+    #main-table {
+        height: 70%;
+    }
+
+    #player-section {
+        height: 30%;
+        layout: vertical;
+    }
+
+    #player-info {
+        height: 60%;
+        border: solid $primary;
+        padding: 1;
+    }
+
+    .prompt {
+        text-align: center;
+        margin-bottom: 1;
+    }
+
+    #controls {
+        height: 40%;
+        align: center middle;
+    }
+
+    .dialog {
+        align: center middle;
+        width: 50;
+        height: 10;
+        border: solid $primary;
+        background: $surface;
+        padding: 1;
+    }
+
+    .buttons {
+        align: center middle;
+        height: 3;
+    }
+
+    #playlist-controls {
+        height: 3;
+        align: center middle;
+        border-bottom: solid $primary;
+        padding: 1;
+    }
+    """
+
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("space", "play_pause", "Play/Pause"),
+        ("n", "next_track", "Next"),
+        ("p", "prev_track", "Previous"),
+        ("s", "stop_playback", "Stop"),
+        ("c", "create_playlist", "Create Playlist"),
+        ("d", "delete_playlist", "Delete Playlist"),
+        ("a", "add_to_playlist", "Add to Playlist"),
+        ("r", "remove_from_playlist", "Remove from Playlist"),
+        ("l", "select_playlist", "Select Playlist"),
+        ("z", "shuffle_playlist", "Shuffle"),
+        ("shift+r", "repeat_mode", "Repeat"),
+        ("ctrl+p", "play_playlist", "Play All"),
+    ]
+
+    current_playlist_name = reactive("")
+    current_view_tracks = reactive([])
+    shuffle_mode = reactive(False)
+    repeat_mode = reactive(0)  # 0=off, 1=playlist, 2=track
+
+    def __init__(self):
+        super().__init__()
+        self.config = MusicConfig()
+        self.audio = AudioBackend(self.config)
+        self.playlist_manager = PlaylistManager(self.config)
+        self.library: List[MusicTrack] = []
+        self.current_index = 0
+        self.current_playlist_name = self.config.data.get('current_playlist') or ""
+        self.shuffle_mode = self.config.data.get('shuffle_mode', False)
+        self.repeat_mode = self.config.data.get('repeat_mode', 0)
+        self._load_library()
+        self.load_current_view()
+        self._progress_timer = None
+
+    # ... (rest of the code continues)
+
+if __name__ == "__main__":
+    os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+    try:
+        app = MusicPlayer()
+        app.run()
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        mixer.quit()
+    except Exception as e:
+        print(f"Application error: {e}")
+        sys.exit(1)</div>
         </div>
 
         <div class="features">
-            <div class="feature-card">
-                <div class="feature-icon">🎵</div>
-                <h3 class="feature-title">Multi-Format Support</h3>
-                <p>Play MP3, FLAC, OGG, WAV, and M4A files with rich metadata display including artist, title, and duration.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">📚</div>
-                <h3 class="feature-title">Smart Playlists</h3>
-                <p>Create, manage, and organize custom playlists. Switch between your library and curated collections seamlessly.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">🎮</div>
-                <h3 class="feature-title">Intuitive Controls</h3>
-                <p>Full keyboard navigation with familiar shortcuts. Play, pause, skip, shuffle, and repeat with simple key presses.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">🔀</div>
-                <h3 class="feature-title">Playback Modes</h3>
-                <p>Shuffle your music, repeat playlists, or loop single tracks. Multiple repeat modes for every listening preference.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">🔧</div>
-                <h3 class="feature-title">Ready to Use</h3>
-                <p>Pre-compiled executable ready to run. No complex setup or dependency management required.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">💾</div>
-                <h3 class="feature-title">Persistent State</h3>
-                <p>Remembers your playlists, volume settings, and preferences. Pick up right where you left off.</p>
+            <h2>🌟 Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🎵 Audio Support</h3>
+                    <p>Supports MP3, WAV, OGG, FLAC, and M4A audio formats with automatic metadata extraction</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📚 Playlist Management</h3>
+                    <p>Create, edit, and manage custom playlists with persistent storage</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎮 Intuitive Controls</h3>
+                    <p>Full keyboard shortcuts and mouse controls for seamless music playback</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔀 Smart Playback</h3>
+                    <p>Shuffle mode, repeat options (off/playlist/track), and automatic track progression</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Progress Tracking</h3>
+                    <p>Visual progress bar with real-time position updates and track information</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎨 Modern UI</h3>
+                    <p>Built with Textual framework for a beautiful terminal-based interface</p>
+                </div>
             </div>
         </div>
 
         <div class="download-section">
-            <h2 style="margin-bottom: 2rem; font-size: 2.5rem; color: #00ff41;">Ready to Rock Your Terminal?</h2>
+            <h2 style="margin-bottom: 2rem; font-size: 2.5rem; color: #00ff41; text-shadow: 0 0 20px #00ff41;">Ready to Rock Your Terminal?</h2>
             <a href="https://drive.google.com/file/d/10dJ3ue_Utsm_DxfWEdFpA0pwMMijkv1l/view?usp=sharing" class="download-btn" target="_blank">
                 📥 Download PyMPC
             </a>
-            <p style="margin-top: 1rem; color: #888;">Windows executable - no installation required</p>
+            <p style="margin-top: 1rem; color: #66ff66; font-size: 1.1rem;">Windows executable - no installation required</p>
         </div>
 
         <div class="specs">
@@ -412,54 +1037,53 @@
             </ul>
         </div>
 
-        <footer style="text-align: center; padding: 3rem 0; color: #666; border-top: 1px solid #333; margin-top: 3rem;">
-            <p>PyMPC - Built for music lovers who live in the terminal</p>
-            <p style="margin-top: 1rem;">🎵 Happy listening! 🎵</p>
+        <footer style="text-align: center; padding: 3rem 0; color: #666; border-top: 1px solid #00ff41; margin-top: 3rem;">
+            <p style="color: #66ff66;">PyMPC - Built for music lovers who live in the terminal</p>
+            <p style="margin-top: 1rem; color: #00ff41;">🎵 Happy listening! 🎵</p>
         </footer>
     </div>
 
     <script>
-        // Add some interactive elements
-        document.addEventListener('DOMContentLoaded', function() {
-            // Animate the terminal typing effect
-            const terminalLines = document.querySelectorAll('.command-line');
+        function copyCode() {
+            const codeBlock = document.getElementById('codeBlock');
+            const textToCopy = codeBlock.textContent;
             
-            // Add click effect to feature cards
-            const featureCards = document.querySelectorAll('.feature-card');
-            featureCards.forEach(card => {
-                card.addEventListener('click', function() {
-                    this.style.transform = 'scale(0.95)';
-                    setTimeout(() => {
-                        this.style.transform = '';
-                    }, 150);
-                });
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const button = document.querySelector('.copy-btn');
+                const originalText = button.innerHTML;
+                button.innerHTML = '✅ Copied!';
+                button.style.background = 'rgba(46, 204, 113, 0.8)';
+                button.style.color = '#fff';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = 'rgba(0, 0, 0, 0.3)';
+                    button.style.color = '#000';
+                }, 2000);
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                
+                const button = document.querySelector('.copy-btn');
+                const originalText = button.innerHTML;
+                button.innerHTML = '✅ Copied!';
+                button.style.background = 'rgba(46, 204, 113, 0.8)';
+                button.style.color = '#fff';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = 'rgba(0, 0, 0, 0.3)';
+                    button.style.color = '#000';
+                }, 2000);
             });
+        }
 
-            // Add sparkle effect on download button hover
-            const downloadBtn = document.querySelector('.download-btn');
-            downloadBtn.addEventListener('mouseenter', function() {
-                this.style.background = 'linear-gradient(45deg, #66ff66, #00ff41)';
-            });
-            
-            downloadBtn.addEventListener('mouseleave', function() {
-                this.style.background = 'linear-gradient(45deg, #00ff41, #66ff66)';
-            });
-
-            // Random music note animation
-            setInterval(() => {
-                const notes = document.querySelectorAll('.music-note');
-                notes.forEach(note => {
-                    if (Math.random() > 0.7) {
-                        note.style.transform = `translateY(-20px) rotate(${Math.random() * 360}deg)`;
-                        setTimeout(() => {
-                            note.style.transform = '';
-                        }, 500);
-                    }
-                });
-            }, 3000);
-        });
-
-        // Add a subtle matrix-like effect
+        // Matrix-like falling characters effect
         function createMatrixEffect() {
             const chars = '01♪♫🎵🎶';
             const matrixElement = document.createElement('div');
@@ -477,7 +1101,6 @@
             matrixElement.textContent = chars[Math.floor(Math.random() * chars.length)];
             document.body.appendChild(matrixElement);
 
-            // Remove element after animation
             setTimeout(() => {
                 matrixElement.remove();
             }, 5000);
@@ -495,8 +1118,47 @@
         `;
         document.head.appendChild(style);
 
-        // Create matrix effect periodically
-        setInterval(createMatrixEffect, 500);
+        // Enhanced interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate floating music notes
+            setInterval(() => {
+                const notes = document.querySelectorAll('.music-note');
+                notes.forEach(note => {
+                    if (Math.random() > 0.7) {
+                        note.style.transform = `translateY(-20px) rotate(${Math.random() * 360}deg)`;
+                        setTimeout(() => {
+                            note.style.transform = '';
+                        }, 500);
+                    }
+                });
+            }, 3000);
+
+            // Feature card interactions
+            const featureCards = document.querySelectorAll('.feature-card');
+            featureCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    this.style.transform = 'scale(0.95) translateY(-5px)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 150);
+                });
+            });
+
+            // Download button hover effects
+            const downloadBtn = document.querySelector('.download-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('mouseenter', function() {
+                    this.style.background = 'linear-gradient(45deg, #66ff66, #00ff41)';
+                });
+                
+                downloadBtn.addEventListener('mouseleave', function() {
+                    this.style.background = 'linear-gradient(45deg, #00ff41, #66ff66)';
+                });
+            }
+
+            // Create matrix effect periodically
+            setInterval(createMatrixEffect, 500);
+        });
     </script>
 </body>
 </html>

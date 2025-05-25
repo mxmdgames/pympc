@@ -950,7 +950,538 @@ class MusicPlayer(App):
         self.load_current_view()
         self._progress_timer = None
 
-    # ... (rest of the code continues)
+    def _load_library(self):
+        """Optimized library scanning"""
+        print("Loading music library...")
+        suffixes = self.config.supported_suffixes
+        seen_files = set()
+
+        for path in self.config.music_dirs:
+            if not path.exists():
+                continue
+
+            for f in path.rglob('*'):
+                if f.suffix.lower() in suffixes and f not in seen_files:
+                    seen_files.add(f)
+                    self.library.append(MusicTrack(f))
+
+        print(f"Found {len(self.library)} tracks")
+
+    def load_current_view(self):
+        """Load tracks for current view (library or playlist)"""
+        if self.current_playlist_name:
+            self.current_view_tracks = self.playlist_manager.get_playlist_tracks(self.current_playlist_name)
+        else:
+            self.current_view_tracks = self.library
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Horizontal(
+            # Sidebar with playlists and library selector
+            Vertical(
+                Vertical(
+                    Static("📚 Playlists", classes="section-header"),
+                    Horizontal(
+                        Button("▶️ Play All", id="play-playlist", variant="success"),
+                        Button("🔀", id="shuffle", variant="primary"),
+                        Button("🔁", id="repeat", variant="primary"),
+                        id="playlist-controls"
+                    ),
+                    DataTable(id="playlists"),
+                    id="playlists"
+                ),
+                Vertical(
+                    Static("🎵 Library", classes="section-header"),
+                    Button("All Music", id="show-library", variant="primary"),
+                    id="library-selector"
+                ),
+                id="sidebar"
+            ),
+            # Main content area
+            Vertical(
+                DataTable(id="main-table"),
+                Vertical(
+                    Static(id="player-info"),
+                    ProgressBar(id="progress"),
+                    Horizontal(
+                        Button("⏯️ Play", id="play"),
+                        Button("⏭️ Next", id="next"),
+                        Button("⏹️ Stop", id="stop"),
+                        id="controls"
+                    ),
+                    id="player-section"
+                ),
+                id="main-content"
+            )
+        )
+        yield Footer()
+
+    def on_mount(self):
+        """Initialize the UI"""
+        # Setup playlist table
+        self.update_playlist_table()
+
+        # Setup main table
+        main_table = self.query_one("#main-table", DataTable)
+        main_table.add_columns("Title", "Artist", "Duration")
+        self.update_main_table()
+
+        # Set up progress updates
+        self._progress_timer = self.set_interval(0.5, self.update_progress)
+
+    def update_playlist_table(self):
+        """Update the playlist selector table"""
+        playlist_table = self.query_one("#playlists", DataTable)
+        playlist_table.clear(columns=True)
+        playlist_table.add_column("Name")
+
+        for name in self.playlist_manager.playlists:
+            playlist_table.add_row(name)
+
+    def update_main_table(self):
+        """Update the main track table"""
+        main_table = self.query_one("#main-table", DataTable)
+        main_table.clear()
+
+        # Load all tracks
+        for track in self.current_view_tracks:
+            main_table.add_row(track.title, track.artist, track.duration_str)
+
+        if self.current_view_tracks:
+            main_table.move_cursor(row=0)
+
+    def update_progress(self):
+        """Update progress bar and check for track end"""
+        track_ended = False
+
+        # Check for track completion whether playing or not (in case it stopped unexpectedly)
+        if self.audio.current_track and not self.audio.is_stopped:
+            # Check pygame end events first
+            if self.audio.check_events():
+                track_ended = True
+                print("DEBUG: Track ended via pygame event")
+
+            # Check if mixer stopped playing (common when track ends)
+            elif not mixer.music.get_busy() and not self.audio.paused:
+                track_ended = True
+                print("DEBUG: Track ended - mixer not busy and not paused")
+
+            # Fallback: check if track finished based on position vs duration
+            elif self.audio.current_track.duration > 0:
+                position = self.audio.position
+                duration = self.audio.current_track.duration
+                mixer_busy = mixer.music.get_busy()
+
+                print(
+                    f"DEBUG: pos={position:.1f}, dur={duration:.1f}, busy={mixer_busy}, playing={self.audio.is_playing}, paused={self.audio.paused}")
+
+                # If position is near or past the end
+                if position >= duration - 0.5:
+                    track_ended = True
+                    print("DEBUG: Track ended via position check")
+
+                # Additional check: if position hasn't changed and we're near the end
+                if not hasattr(self, '_last_position'):
+                    self._last_position = position
+                    self._position_stuck_count = 0
+
+                if abs(position - self._last_position) < 0.1:  # Position barely changed
+                    self._position_stuck_count += 1
+                    if self._position_stuck_count > 6 and position >= duration - 2.0:  # Stuck for 3 seconds near end
+                        track_ended = True
+                        print("DEBUG: Track ended via stuck position")
+                else:
+                    self._position_stuck_count = 0
+
+                self._last_position = position
+
+        # Clear events when explicitly stopped to prevent false triggers
+        elif self.audio.is_stopped:
+            self.audio.check_events()
+
+        # Handle track ending
+        if track_ended:
+            print(f"DEBUG: Advancing to next track (repeat_mode={self.repeat_mode})")
+            # Mark as stopped to prevent retriggering
+            self.audio.stopped = True
+
+            if self.repeat_mode == 2:  # Track repeat
+                self.play_current_track()
+            else:
+                self.next_track()
+
+        # Update progress bar
+        if self.audio.current_track and (self.audio.is_playing or self.audio.is_paused):
+            progress = self.query_one("#progress", ProgressBar)
+            position = self.audio.position
+            duration = self.audio.current_track.duration
+
+            if duration > 0:
+                progress.update(progress=position, total=duration)
+
+        # Update button label and display
+        self.update_play_button()
+
+    def update_play_button(self):
+        """Update the play/pause button label based on current state"""
+        play_button = self.query_one("#play", Button)
+
+        if self.audio.is_playing:
+            play_button.label = "⏸️ Pause"
+        elif self.audio.is_paused:
+            play_button.label = "▶️ Resume"
+        else:
+            play_button.label = "▶️ Play"
+
+    # Event Handlers
+    @on(DataTable.RowSelected, "#playlists")
+    def playlist_selected(self, event: DataTable.RowSelected):
+        """Handle playlist selection"""
+        if event.cursor_row is not None:
+            playlist_table = self.query_one("#playlists", DataTable)
+            cells = playlist_table.get_row_at(event.cursor_row)
+            if cells:
+                self.current_playlist_name = str(cells[0])
+                self.config.data['current_playlist'] = self.current_playlist_name
+                self.config.save_config()
+                self.load_current_view()
+                self.update_main_table()
+                self.notify(f"Selected playlist: {self.current_playlist_name}")
+
+    @on(DataTable.RowHighlighted, "#playlists")
+    def playlist_highlighted(self, event: DataTable.RowHighlighted):
+        """Handle playlist highlighting"""
+        pass
+
+    @on(Button.Pressed, "#play-playlist")
+    def play_playlist(self):
+        """Start playing entire playlist from beginning"""
+        if self.current_view_tracks:
+            self.current_index = 0
+            self.play_current_track()
+            self.notify("▶️ Starting playlist playback")
+        else:
+            self.notify("Playlist is empty!", severity="warning")
+
+    @on(Button.Pressed, "#shuffle")
+    def toggle_shuffle(self):
+        """Toggle shuffle mode"""
+        self.shuffle_mode = not self.shuffle_mode
+        shuffle_icon = "🔀" if self.shuffle_mode else "🔀"
+        self.query_one("#shuffle", Button).label = shuffle_icon
+        self.config.data['shuffle_mode'] = self.shuffle_mode
+        self.config.save_config()
+        self.notify(f"🔀 Shuffle {'ON' if self.shuffle_mode else 'OFF'}")
+
+    @on(Button.Pressed, "#repeat")
+    def cycle_repeat(self):
+        """Cycle through repeat modes"""
+        self.repeat_mode = (self.repeat_mode + 1) % 3
+        repeat_icons = ["🔁", "🔂", "🔁"]
+        repeat_labels = ["Repeat: OFF", "Repeat: Playlist", "Repeat: Track"]
+
+        self.query_one("#repeat", Button).label = repeat_icons[self.repeat_mode]
+        self.config.data['repeat_mode'] = self.repeat_mode
+        self.config.save_config()
+        self.notify(repeat_labels[self.repeat_mode])
+
+    @on(Button.Pressed, "#show-library")
+    def show_library(self):
+        """Show full library"""
+        self.current_playlist_name = ""
+        self.config.data['current_playlist'] = None
+        self.config.save_config()
+        self.load_current_view()
+        self.update_main_table()
+
+    @on(DataTable.RowSelected, "#main-table")
+    def track_selected(self, event: DataTable.RowSelected):
+        """Handle track selection (double-click or Enter key)"""
+        if event.cursor_row is not None and self.current_view_tracks:
+            self.current_index = event.cursor_row
+            self.play_current_track()
+            track = self.current_view_tracks[self.current_index]
+            self.notify(f"▶️ Playing track: {track.title}")
+
+    @on(DataTable.RowHighlighted, "#main-table")
+    def track_highlighted(self, event: DataTable.RowHighlighted):
+        """Handle track highlighting - update current index"""
+        if event.cursor_row is not None:
+            self.current_index = event.cursor_row
+
+    @on(Button.Pressed, "#play")
+    def handle_play_button(self):
+        """Handle the main play/pause button with proper state logic"""
+        if self.audio.is_playing:
+            # Currently playing - pause it
+            self.audio.pause()
+            self.notify("⏸️ Paused")
+        elif self.audio.is_paused:
+            # Currently paused - resume
+            self.audio.unpause()
+            self.notify("▶️ Resumed")
+        else:
+            # Stopped or no track - play selected track
+            self.play_selected_track()
+
+        self.update_display()
+
+    @on(Button.Pressed, "#next")
+    def handle_next_button(self):
+        """Handle next track button"""
+        self.next_track()
+
+    @on(Button.Pressed, "#stop")
+    def handle_stop_button(self):
+        """Handle stop button - always stops playback"""
+        self.audio.stop()
+        self.update_display()
+        # Reset progress bar
+        progress = self.query_one("#progress", ProgressBar)
+        progress.update(progress=0, total=1)
+        self.notify("⏹️ Stopped")
+
+    def play_selected_track(self):
+        """Play the currently highlighted track in the table"""
+        if not self.current_view_tracks:
+            self.notify("No tracks available!", severity="error")
+            return
+
+        # Ensure current_index is within bounds
+        if self.current_index >= len(self.current_view_tracks):
+            self.current_index = 0
+
+        # Get the highlighted row from table
+        main_table = self.query_one("#main-table", DataTable)
+        if main_table.cursor_row is not None:
+            self.current_index = main_table.cursor_row
+
+        self.play_current_track()
+
+    def play_current_track(self):
+        """Play track at current_index"""
+        if not self.current_view_tracks:
+            self.notify("No tracks available!", severity="error")
+            return
+
+        if 0 <= self.current_index < len(self.current_view_tracks):
+            track = self.current_view_tracks[self.current_index]
+            if self.audio.play(track):
+                self.update_display()
+                # Update table cursor to match current track
+                main_table = self.query_one("#main-table", DataTable)
+                if main_table.row_count > self.current_index:
+                    main_table.move_cursor(row=self.current_index)
+                self.notify(f"🎵 Now playing: {track.title}")
+            else:
+                self.notify(f"Failed to play: {track.title}", severity="error")
+
+    def next_track(self):
+        """Play next track with shuffle/repeat support"""
+        if not self.current_view_tracks:
+            self.notify("No tracks available!", severity="warning")
+            return
+
+        if self.repeat_mode == 2:  # Repeat single track
+            self.play_current_track()
+            return
+
+        if self.shuffle_mode:
+            self.current_index = random.randint(0, len(self.current_view_tracks) - 1)
+        else:
+            self.current_index = (self.current_index + 1) % len(self.current_view_tracks)
+
+        # Check if we've reached the end of playlist and repeat is off
+        if self.current_index == 0 and self.repeat_mode == 0 and not self.shuffle_mode:
+            self.audio.stop()
+            self.update_display()
+            self.notify("⏹️ End of playlist")
+        else:
+            self.play_current_track()
+
+    def update_display(self):
+        """Update the player info display"""
+        info = self.query_one("#player-info", Static)
+
+        if self.audio.current_track:
+            track = self.audio.current_track
+
+            # Determine status
+            if self.audio.is_playing:
+                status = "▶️ Playing"
+            elif self.audio.is_paused:
+                status = "⏸️ Paused"
+            else:
+                status = "⏹️ Stopped"
+
+            # Add playlist info and track position
+            playlist_info = f" | 📚 {self.current_playlist_name}" if self.current_playlist_name else " | 📚 All Music"
+
+            # Show current track position in playlist/library
+            if self.current_view_tracks:
+                track_num = self.current_index + 1
+                total_tracks = len(self.current_view_tracks)
+                position_info = f" | 🔢 {track_num}/{total_tracks}"
+            else:
+                position_info = ""
+
+            # Show shuffle/repeat status
+            mode_icons = []
+            if self.shuffle_mode:
+                mode_icons.append("🔀")
+            if self.repeat_mode == 1:
+                mode_icons.append("🔂")
+            elif self.repeat_mode == 2:
+                mode_icons.append("🔁")
+            mode_info = " | " + " ".join(mode_icons) if mode_icons else ""
+
+            info.update(
+                f"{status}{playlist_info}{position_info}{mode_info}\n"
+                f"🎵 {track.title}\n"
+                f"👤 {track.artist}\n"
+                f"⏱ {track.duration_str}"
+            )
+        else:
+            playlist_info = f"📚 {self.current_playlist_name}" if self.current_playlist_name else "📚 All Music"
+            info.update(f"{playlist_info}\n🎵 No track selected\n\nSelect a track and press Play")
+
+    # Keyboard Actions
+    def action_play_pause(self):
+        """Keyboard shortcut for play/pause"""
+        self.handle_play_button()
+
+    def action_next_track(self):
+        """Keyboard shortcut for next track"""
+        self.next_track()
+
+    def action_prev_track(self):
+        """Keyboard shortcut for previous track"""
+        if self.current_view_tracks:
+            if self.shuffle_mode:
+                # Random previous track in shuffle mode
+                self.current_index = random.randint(0, len(self.current_view_tracks) - 1)
+            else:
+                self.current_index = (self.current_index - 1) % len(self.current_view_tracks)
+            self.play_current_track()
+
+    def action_stop_playback(self):
+        """Keyboard shortcut for stop"""
+        self.handle_stop_button()
+
+    def action_shuffle_playlist(self):
+        """Toggle shuffle mode via keyboard"""
+        self.toggle_shuffle()
+
+    def action_repeat_mode(self):
+        """Cycle repeat mode via keyboard"""
+        self.cycle_repeat()
+
+    def action_play_playlist(self):
+        """Start playlist playback via keyboard"""
+        self.play_playlist()
+
+    def action_select_playlist(self):
+        """Select current highlighted playlist (keyboard shortcut)"""
+        playlist_table = self.query_one("#playlists", DataTable)
+        if playlist_table.cursor_row is not None:
+            cells = playlist_table.get_row_at(playlist_table.cursor_row)
+            if cells:
+                self.current_playlist_name = str(cells[0])
+                self.config.data['current_playlist'] = self.current_playlist_name
+                self.config.save_config()
+                self.load_current_view()
+                self.update_main_table()
+                self.notify(f"Switched to playlist: {self.current_playlist_name}")
+                self.update_display()
+
+    def action_create_playlist(self):
+        """Create a new playlist"""
+
+        def handle_playlist_name(name: str):
+            if name and self.playlist_manager.create_playlist(name):
+                self.update_playlist_table()
+                self.notify(f"Created playlist: {name}")
+            elif name:
+                self.notify(f"Playlist '{name}' already exists!", severity="error")
+
+        self.push_screen(InputScreen("Enter playlist name:"), handle_playlist_name)
+
+    def action_delete_playlist(self):
+        """Delete selected playlist"""
+        playlist_table = self.query_one("#playlists", DataTable)
+        if playlist_table.cursor_row is not None:
+            cells = playlist_table.get_row_at(playlist_table.cursor_row)
+            if cells:
+                playlist_name = str(cells[0])
+                if self.playlist_manager.delete_playlist(playlist_name):
+                    self.update_playlist_table()
+                    if self.current_playlist_name == playlist_name:
+                        self.show_library()
+                    self.notify(f"Deleted playlist: {playlist_name}")
+
+    def action_add_to_playlist(self):
+        """Add current track to a playlist"""
+        main_table = self.query_one("#main-table", DataTable)
+        if main_table.cursor_row is None or not self.current_view_tracks:
+            self.notify("No track selected!", severity="error")
+            return
+
+        track = self.current_view_tracks[main_table.cursor_row]
+        options = list(self.playlist_manager.playlists.keys())
+
+        if not options:
+            self.notify("No playlists available! Create one first.", severity="error")
+            return
+
+        def handle_playlist_selection(playlist: str):
+            if playlist and self.playlist_manager.add_to_playlist(playlist, track):
+                self.notify(f"Added '{track.title}' to '{playlist}'")
+            elif playlist:
+                self.notify(f"Track already in playlist '{playlist}'!", severity="warning")
+
+        self.push_screen(SelectionScreen("Select playlist:", options), handle_playlist_selection)
+
+    def action_remove_from_playlist(self):
+        """Remove current track from current playlist"""
+        if not self.current_playlist_name:
+            self.notify("Not viewing a playlist!", severity="error")
+            return
+
+        main_table = self.query_one("#main-table", DataTable)
+        if main_table.cursor_row is None or not self.current_view_tracks:
+            self.notify("No track selected!", severity="error")
+            return
+
+        track = self.current_view_tracks[main_table.cursor_row]
+        if self.playlist_manager.remove_from_playlist(self.current_playlist_name, str(track.path)):
+            self.load_current_view()
+            self.update_main_table()
+            self.notify(f"Removed '{track.title}' from '{self.current_playlist_name}'")
+
+    def shuffle_current_playlist(self):
+        """Shuffle the current playlist tracks order"""
+        if self.current_view_tracks:
+            # Create new shuffled list while maintaining original as backup
+            shuffled_tracks = random.sample(self.current_view_tracks, len(self.current_view_tracks))
+            self.current_view_tracks = shuffled_tracks
+
+            # Update UI and current index
+            self.current_index = 0
+            self.update_main_table()
+            self.notify("🔀 Playlist order shuffled")
+
+    def on_unmount(self):
+        """Clean up when app closes and save state"""
+        # Save current state
+        self.config.data['shuffle_mode'] = self.shuffle_mode
+        self.config.data['repeat_mode'] = self.repeat_mode
+        self.config.save_config()
+
+        # Clean up timers and audio
+        if self._progress_timer:
+            self._progress_timer.stop()
+        self.audio.stop()
+
 
 if __name__ == "__main__":
     os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
